@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
-const Realm = require("realm");
+// const Realm = require("realm");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
@@ -89,22 +89,43 @@ async function run() {
       res.send(result);
     });
 
+    // app.get("/searchsellingmedicine", async (req, res) => {
+    //   const queryKey = req.query.queryKey;
+    //   console.log("queryKey:", queryKey);
+    //   const REALM_APP_ID = "medicines-dujph";
+    //   const app = new Realm.App({ id: REALM_APP_ID });
+    //   const credentials = Realm.Credentials.anonymous();
+    //   try {
+    //     const user = await app.logIn(credentials);
+    //     console.log("user:", user);
+    //     const allSellingMedicine =
+    //       await user.functions.searchSellingMedicineName(queryKey);
+    //     console.log("allSellingMedicine:-", allSellingMedicine);
+    //     res.send(allSellingMedicine);
+    //   } catch (err) {
+    //     console.error("Failed to log in", err);
+    //   }
+    // });
     app.get("/searchsellingmedicine", async (req, res) => {
       const queryKey = req.query.queryKey;
-      console.log("queryKey:", queryKey);
-      const REALM_APP_ID = "medicines-dujph";
-      const app = new Realm.App({ id: REALM_APP_ID });
-      const credentials = Realm.Credentials.anonymous();
-      try {
-        const user = await app.logIn(credentials);
-        console.log("user:", user);
-        const allSellingMedicine =
-          await user.functions.searchSellingMedicineName(queryKey);
-        console.log("allSellingMedicine:-", allSellingMedicine);
-        res.send(allSellingMedicine);
-      } catch (err) {
-        console.error("Failed to log in", err);
-      }
+      let pipeline = [
+        {
+          $search: {
+            index: "searchSellingMedicine",
+            text: {
+              query: queryKey,
+              path: {
+                wildcard: "*",
+              },
+              fuzzy: {},
+            },
+          },
+        },
+      ];
+      const result = await sellingMedicineCollection
+        .aggregate(pipeline)
+        .toArray();
+      res.send(result);
     });
   } finally {
   }
