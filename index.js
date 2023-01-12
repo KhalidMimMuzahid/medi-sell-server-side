@@ -3,7 +3,7 @@ const cors = require("cors");
 const jwt = require("jsonwebtoken");
 // const Realm = require("realm");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 
 const app = express();
 const port = process.env.port || 5000;
@@ -62,20 +62,35 @@ async function run() {
     });
     app.post("/sellmedicine", async (req, res) => {
       const sellingMedicineInfo = req.body;
+      let newSellingMedicineInfo = { ...sellingMedicineInfo };
       // console.log(sellingMedicineInfo);
+      const { sellerEmail } = sellingMedicineInfo;
 
+      const query = { email: sellerEmail };
+      // User  Check For user-Verified
+      const user = await users.findOne(query);
+      if (user?.isVerified) {
+        newSellingMedicineInfo.userVerified = true;
+      }
       const result = await sellingMedicineCollection.insertOne(
-        sellingMedicineInfo
+        newSellingMedicineInfo
       );
       console.log(result);
       res.send(result);
     });
     app.post("/donatemedicine", async (req, res) => {
       const donatingMedicineInfo = req.body;
+      let newDonatingMedicineInfo = { ...donatingMedicineInfo };
       // console.log(donatingMedicineInfo);
-
+      const { sellerEmail } = donatingMedicineInfo;
+      const query = { email: sellerEmail };
+      // User  Check For user-Verified
+      const user = await users.findOne(query);
+      if (user?.isVerified) {
+        newDonatingMedicineInfo.userVerified = true;
+      }
       const result = await donatingMedicineCollection.insertOne(
-        donatingMedicineInfo
+        newDonatingMedicineInfo
       );
       // console.log(result);
       res.send(result);
@@ -125,6 +140,111 @@ async function run() {
       const result = await sellingMedicineCollection
         .aggregate(pipeline)
         .toArray();
+      res.send(result);
+    });
+    app.get("/sellingMedicineDetails", async (req, res) => {
+      const _id = req.query._id;
+      console.log("_id: ", _id);
+      const query = { _id: ObjectId(_id) };
+
+      const result = await sellingMedicineCollection.findOne(query);
+      // console.log(result);
+      res.send(result);
+    });
+    app.get("/searchdonatingmedicine", async (req, res) => {
+      const queryKey = req.query.queryKey;
+      const query = { medicineName: queryKey };
+      const options = {};
+      const result = await donatingMedicineCollection
+        .find(query, options)
+        .toArray();
+      res.send(result);
+    });
+    app.get("/donatingMedicineDetails", async (req, res) => {
+      const _id = req.query._id;
+      // console.log("_id: ", _id);
+      const query = { _id: ObjectId(_id) };
+      const result = await donatingMedicineCollection.findOne(query);
+      // console.log(result);
+      res.send(result);
+    });
+    app.post("/reportsellingmedicine", async (req, res) => {
+      const reportingStatusObject = req.body;
+      const { reportingStatus } = reportingStatusObject;
+      // console.log("OKKk", reportingStatus);
+
+      const filter = { _id: ObjectId(reportingStatus._id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          reportingStatus: reportingStatus,
+        },
+      };
+
+      const result = await sellingMedicineCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+
+      res.send(result);
+    });
+    app.post("/reportdonatingmedicine", async (req, res) => {
+      const reportingStatusObject = req.body;
+      const { reportingStatus } = reportingStatusObject;
+      // console.log("OKKk", reportingStatus);
+
+      const filter = { _id: ObjectId(reportingStatus._id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          reportingStatus: reportingStatus,
+        },
+      };
+
+      const result = await donatingMedicineCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+
+      res.send(result);
+    });
+    app.put("/takedonatedmedicine", async (req, res) => {
+      const _id = req.query._id;
+      const medicineTakerNGOInfo = req.body;
+      // console.log(
+      //   "_id: " + _id,
+      //   "\nmedicineTakerNGOInfo:",
+      //   medicineTakerNGOInfo
+      // );
+
+      const filter = { _id: ObjectId(_id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          donatingStatus: "donated",
+          recipientNGO: medicineTakerNGOInfo,
+        },
+      };
+
+      const result = await donatingMedicineCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      console.log("xxxxxx", result);
+      res.send(result);
+    });
+    app.get("/ourvolunteers", async (req, res) => {
+      const query = {};
+      const result = await volunteersCollection.find(query).toArray();
+      res.send(result);
+    });
+    app.get("/volunteerdelet", async (req, res) => {
+      const _id = req.query._id;
+      const query = { _id: ObjectId(_id) };
+      const result = await volunteersCollection.deleteOne(query);
       res.send(result);
     });
   } finally {
