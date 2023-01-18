@@ -247,6 +247,67 @@ async function run() {
       const result = await volunteersCollection.deleteOne(query);
       res.send(result);
     });
+    app.get("/mydonatingmedicines", async (req, res) => {
+      const sellerEmail = req.query.sellerEmail;
+
+      const query = { sellerEmail };
+      const options = {};
+      const result = await donatingMedicineCollection
+        .find(query, options)
+        .toArray();
+      res.send(result);
+    });
+
+    app.get("/mysellingmedicines", async (req, res) => {
+      const sellerEmail = req.query.sellerEmail;
+
+      const query = { sellerEmail };
+      const options = {};
+      const result = await sellingMedicineCollection
+        .find(query, options)
+        .toArray();
+      res.send(result);
+    });
+    app.put("/buymedicine", async (req, res) => {
+      const _id = req.query._id;
+      const buyer = req.body;
+      // console.log(buyer);
+      // console.log("_id: ", _id);
+
+      const filter = { _id: ObjectId(_id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          sellingStatus: "sold",
+          buyer: buyer,
+        },
+      };
+
+      const result = await sellingMedicineCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      // console.log("xxxxxx", result);
+      res.send(result);
+    });
+    app.delete("/deletdonatingmedicine", async (req, res) => {
+      const _id = req.query._id;
+      console.log(_id);
+      const query = { _id: ObjectId(_id) };
+      const result = await donatingMedicineCollection.deleteOne(query);
+
+      res.send(result);
+    });
+
+    app.delete("/deletsellingmedicine", async (req, res) => {
+      const _id = req.query._id;
+      console.log(_id);
+      const query = { _id: ObjectId(_id) };
+      const result = await sellingMedicineCollection.deleteOne(query);
+
+      res.send(result);
+    });
   } finally {
   }
 }
