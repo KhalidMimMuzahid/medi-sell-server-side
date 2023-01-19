@@ -103,7 +103,6 @@ async function run() {
       // console.log(result);
       res.send(result);
     });
-
     // app.get("/searchsellingmedicine", async (req, res) => {
     //   const queryKey = req.query.queryKey;
     //   console.log("queryKey:", queryKey);
@@ -257,7 +256,6 @@ async function run() {
         .toArray();
       res.send(result);
     });
-
     app.get("/mysellingmedicines", async (req, res) => {
       const sellerEmail = req.query.sellerEmail;
 
@@ -299,7 +297,6 @@ async function run() {
 
       res.send(result);
     });
-
     app.delete("/deletsellingmedicine", async (req, res) => {
       const _id = req.query._id;
       console.log(_id);
@@ -307,6 +304,81 @@ async function run() {
       const result = await sellingMedicineCollection.deleteOne(query);
 
       res.send(result);
+    });
+    app.get("/ourdonatedstocks", async (req, res) => {
+      const ngoEmail = req.query.ngoEmail;
+      // console.log(ngoEmail);
+      const query = {
+        "recipientNGO.ngoEmail": ngoEmail,
+      };
+      const result = await donatingMedicineCollection.find(query).toArray();
+      // console.log("result: ", result);
+      res.send(result);
+    });
+    app.get("/allusers", async (req, res) => {
+      const userType = req.query.userType;
+      // console.log("userType: ", userType);
+      const query = {
+        role: userType,
+      };
+      let result = [];
+      if (userType === "user") {
+        result = await users.find(query).toArray();
+      }
+      if (userType === "NGO") {
+        result = await users.find(query).toArray();
+      }
+
+      // console.log("result: ", result);
+      res.send(result);
+    });
+    app.put("/verifyuser", async (req, res) => {
+      const userInfo = req.body;
+      const { email, _id, role } = userInfo;
+      // console.log("userInfo ", userInfo);
+
+      const filter = { _id: ObjectId(_id) };
+      const options = { upsert: true };
+      const updateDoc = {
+        $set: {
+          isVerified: true,
+        },
+      };
+      const result = await users.updateOne(filter, updateDoc, options);
+
+      if (result.modifiedCount && role === "user") {
+        const filter1 = { sellerEmail: email };
+        const updateDoc1 = {
+          $set: {
+            userVerified: true,
+          },
+        };
+        const result1 = await sellingMedicineCollection.updateMany(
+          filter1,
+          updateDoc1,
+          options
+        );
+        const result2 = await donatingMedicineCollection.updateMany(
+          filter1,
+          updateDoc1,
+          options
+        );
+        return res.send(result2);
+      } else if (result.modifiedCount && role === "NGO") {
+        const filter1 = { "recipientNGO.ngoEmail": email };
+        const updateDoc1 = {
+          $set: {
+            "recipientNGO.NGOVerified": true,
+          },
+        };
+        const result3 = await donatingMedicineCollection.updateMany(
+          filter1,
+          updateDoc1,
+          options
+        );
+        return res.send(result3);
+      }
+      res.send({ message: "something wrong" });
     });
   } finally {
   }
