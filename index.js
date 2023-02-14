@@ -1,9 +1,15 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+
 // const Realm = require("realm");
 require("dotenv").config();
-const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
+const {
+  MongoClient,
+  ServerApiVersion,
+  ObjectId,
+  ObjectID,
+} = require("mongodb");
 
 const app = express();
 const port = process.env.port || 5000;
@@ -11,6 +17,8 @@ app.use(cors());
 app.use(express.json());
 const user = process.env.DB_USER;
 const password = process.env.DB_PASSWORD;
+console.log(process.env.STRIPE_SECRET);
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 const uri = `mongodb+srv://${user}:${password}@cluster0.q8e2cvk.mongodb.net/?retryWrites=true&w=majority`;
 // console.log("uri", uri);
@@ -35,7 +43,13 @@ async function run() {
     const volunteersCollection = client
       .db("volunteersCollection")
       .collection("volunteers");
+    // app.get("/freeaction", async (req, res) => {
+    //   // users, sellingMedicineCollection,  donatingMedicineCollection, volunteersCollection
 
+    //   const query = {};
+    //   const result = await volunteersCollection.deleteMany(query);
+    //   res.send(result);
+    // });
     app.post("/insertusertodb", async (req, res) => {
       const userInfo = req.body;
       console.log(userInfo);
@@ -266,6 +280,20 @@ async function run() {
         .toArray();
       res.send(result);
     });
+    app.get("/mypurchasedmedicines", async (req, res) => {
+      const buyerEmail = req?.query?.buyerEmail;
+      // console.log({ buyerEmail });
+      const query = {
+        sellingStatus: "sold",
+        "buyer.buyerEmail": buyerEmail,
+      };
+      const options = {};
+      const result = await sellingMedicineCollection
+        .find(query, options)
+        .toArray();
+      // console.log(result);
+      res.send(result);
+    });
     app.put("/buymedicine", async (req, res) => {
       const _id = req.query._id;
       const buyer = req.body;
@@ -294,6 +322,14 @@ async function run() {
       console.log(_id);
       const query = { _id: ObjectId(_id) };
       const result = await donatingMedicineCollection.deleteOne(query);
+
+      res.send(result);
+    });
+    app.delete("/deletemypurchasedmedicine", async (req, res) => {
+      const _id = req.query._id;
+      console.log(_id);
+      const query = { _id: ObjectId(_id) };
+      const result = await sellingMedicineCollection.deleteOne(query);
 
       res.send(result);
     });
@@ -379,6 +415,53 @@ async function run() {
         return res.send(result3);
       }
       res.send({ message: "something wrong" });
+    });
+    app.post("/create-payment-intent", async (req, res) => {
+      // console.log("hoina keno");
+      const { price } = req.body;
+      const amount = price * 100;
+      // console.log(price, ":::::::::", amount);
+      // Create a PaymentIntent with the order amount and currency
+      const paymentIntent = await stripe.paymentIntents.create({
+        currency: "usd",
+        amount: amount,
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+    app.post("/setpaymentstatus", async (req, res) => {
+      console.log("ooooooookkkkkkkkkkkkkk");
+      const query = req.query;
+      const { _id, paymentId } = query;
+
+      const filter = {
+        _id: ObjectId(_id),
+      };
+      const options = { upsert: true };
+
+      const updateDoc = {
+        $set: {
+          payingStatus: "paid",
+          paymentId,
+        },
+      };
+      const result = await sellingMedicineCollection.updateOne(
+        filter,
+        updateDoc,
+        options
+      );
+      console.log(result);
+
+      if (result?.acknowledged) {
+        return res.send(result);
+      } else {
+        res.send({ acknowledged: false });
+      }
+
+      res.send({ status: "something wrong" });
     });
   } finally {
   }
